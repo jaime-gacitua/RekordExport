@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET
 import sys
 import os
 import shutil
-import urllib2
+import urllib.request
 import logging
 from os.path import expanduser
 
@@ -16,16 +16,16 @@ logging.basicConfig(filename='PlaylistExport.log',level=logging.WARNING)
 
 
 #Path to the export parent dir
-export_root_path = os.getenv("HOME") + "/Desktop/"
+export_root_path = "/Users/jaime/Local Documents/DJ COLLECTION/"
 #Export directory name
-export_top_dir = "Rekordbox_Export"
+export_top_dir = "analyze/"
 #Where is the Rekodbox XML?
-xml_file = os.getenv("HOME") + "/Documents/rb_test.xml"
+xml_file = "/Users/jaime/Local Documents/DJ COLLECTION/20240430-rekordbox-all.xml"
 #Dry run only - if set to 0, no files are written. If set to 1, files will be copied.
-removed_before_flight = 1
+removed_before_flight = 0
 #Prefix track number for each playlist?
 #Each copied track filename will prepended with number (01_ , 02_, 03_) to maintain playlist position
-enable_track_counter = 1
+enable_track_counter = 0
 
 #Don't touch this one.
 current_directory = ""
@@ -49,7 +49,7 @@ def print_structure(xml_root):
 
 
 def playlist_selector(playlist_array):
-	user_choice = raw_input("Select playlist number to export: ")
+	user_choice = input("Select playlist number to export: ")
 	if user_choice =='E' or user_choice == 'e':
 		main_menu()
 	else:
@@ -193,8 +193,8 @@ def get_track_from_collection(trackid):
 		track_file = track.attrib['Location']
 		track_file = track_file.replace('file://localhost','')
 		track_filename_mark = track_file.rfind('/')
-		track_path = urllib2.unquote(track_file[0:track_filename_mark])
-		track_filename = urllib2.unquote(track_file[track_filename_mark+1:len(track_file)])
+		track_path = urllib.request.unquote(track_file[0:track_filename_mark])
+		track_filename = urllib.request.unquote(track_file[track_filename_mark+1:len(track_file)])
 		#print('Track Location: ' + track_filename)
 		#print('Track Path: ' + track_path)
 		print('Track Path raw: ' + track_file)
@@ -238,14 +238,14 @@ def create_export_dir():
 
 def main_menu():
 	logging.debug('Waiting for user input S or A')
-	user_choice = raw_input("Export [S]ingle or [A]ll playlists or [Q]uit?: ")
+	user_choice = input("Export [S]ingle or [A]ll playlists or [Q]uit?: ")
 	if user_choice == 'S' or user_choice == 's':
 		logging.debug('Main menu selection S')
 		print("Selected to export single playlist.")
 		print_structure(open_rb_export())
 	elif user_choice == 'A' or user_choice == 'a':
 		logging.debug('Main menu selection A')
-		double_check = raw_input("Selected to export all playlists. Are you sure? [yes|no]:")
+		double_check = input("Selected to export all playlists. Are you sure? [yes|no]:")
 		if double_check == 'yes':
 			get_playlists(open_rb_export())
 		else:
