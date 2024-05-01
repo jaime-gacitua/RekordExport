@@ -15,14 +15,14 @@ logging.basicConfig(filename='PlaylistExport.log',level=logging.WARNING)
 #logging.basicConfig(filename='PlaylistExport.log',level=logging.DEBUG)
 
 
-#Path to the export parent dir
+#Path to the export parent dir with end slash
 export_root_path = "/Users/jaime/Local Documents/DJ COLLECTION/"
-#Export directory name
-export_top_dir = "analyze/"
+#Export directory name without slashes
+export_top_dir = "analyze"
 #Where is the Rekodbox XML?
 xml_file = "/Users/jaime/Local Documents/DJ COLLECTION/20240430-rekordbox-all.xml"
-#Dry run only - if set to 0, no files are written. If set to 1, files will be copied.
-removed_before_flight = 0
+#Dry run only - if set to 0, no files are written. If set to 1, files will be moved.
+removed_before_flight = 1
 #Prefix track number for each playlist?
 #Each copied track filename will prepended with number (01_ , 02_, 03_) to maintain playlist position
 enable_track_counter = 0
@@ -70,14 +70,30 @@ def list_single_playlist(xml_root,playlist_name):
 			logging.debug('Counter reset')
 			playlist_path = set_playlist_path(playlist_name,current_directory)
 			for playlist_track in playlist:
-				print('---TRACK START---')
-				track_counter = track_counter + 1
-				file_name = get_track_from_collection(playlist_track.attrib['Key'])[0]
-				file_current_path = get_track_from_collection(playlist_track.attrib['Key'])[1]
-				copy_file(file_name,file_current_path,playlist_path,track_counter,0)
+				for track in xml_file.iterfind('COLLECTION/TRACK[@TrackID="%s"]' % playlist_track.attrib['Key']):
+					track_rating = int(track.get('Rating'))
+
+				if track_rating >= 51:
+					print('---TRACK START---')
+					print('Track:', playlist_track.attrib['Key'], 'Rating:', track.get('Rating'))
+					
+					track_counter = track_counter + 1
+					file_name = get_track_from_collection(playlist_track.attrib['Key'])[0]
+					file_current_path = get_track_from_collection(playlist_track.attrib['Key'])[1]
+					
+					if track_rating > 51:
+						move_file(file_name,file_current_path,playlist_path,track_counter,0)
+					elif track_rating == 51:
+						print('REMOVING:', file_current_path + '/' + file_name )
+						if removed_before_flight == 1:
+							try:
+								os.remove(file_current_path + '/' + file_name)
+							except:
+								print('Could not Remove')
+					
 				#print('Track ID :' + get_tracks())
 				#get_track_from_collection(get_tracks(playlist_track))
-				print('---TRACK END---')
+					print('---TRACK END---')
 
 
 def add_zero(track_number):
@@ -115,69 +131,45 @@ def get_playlists(xml_root):
 					track_counter = track_counter + 1
 					file_name = get_track_from_collection(playlist_track.attrib['Key'])[0]
 					file_current_path = get_track_from_collection(playlist_track.attrib['Key'])[1]
-					copy_file(file_name,file_current_path,playlist_path,track_counter,0)
+					move_file(file_name,file_current_path,playlist_path,track_counter,0)
 					#print('Track ID :' + get_tracks())
 					#get_track_from_collection(get_tracks(playlist_track))
 					print('---TRACK END---')
 			else:
 				print('Other: ' + node.attrib['Name'] + " " + node.attrib['Type'])
 
-def copy_file(file,source,destination,counter,safe):
+def move_file(file,source,destination,counter,safe):
 	delimiter = "/"
 	counter_z = str(counter).zfill(2)
 	global enable_track_counter
+
+	logging.debug('Track number: ' + str(counter_z))
+	logging.debug('Track file: ' + file)
+	logging.debug('Move from: ' + source + delimiter + file)
+	logging.debug('Destination dir: ' + destination)
+	print('Track number: ' + str(counter_z))
+	print('Track file: ' + file)
+	
+	#print('Destination dir: ' + destination)
+	final_source = source + delimiter + file
+	final_filename = destination + delimiter
+	print('Move from: ' + final_source)
+
 	if removed_before_flight == 0:
 		logging.info('ONLY PRINTING')
-		logging.debug('Track number: ' + str(counter_z))
-		logging.debug('Track file: ' + file)
-		logging.debug('Copy from: ' + source + delimiter + file)
-		logging.debug('Destination dir: ' + destination)
-		print('Track number: ' + str(counter_z))
-		print('Track file: ' + file)
-		print('Copy from: ' + source + delimiter + file)
-		print('Destination dir: ' + destination)
-		if enable_track_counter == 1:
-			final_filename = destination + delimiter + str(counter_z) + "_" + file
-			print('Copy to: ' + final_filename )
-			logging.debug('Copy to: %s', final_filename )
-		else:
-			final_filename = destination + delimiter + file
-			print('Copy to: ' + final_filename)
-			logging.debug('Copy to: %s', final_filename )
+		print('Move to:   ' + final_filename)
+
 	elif removed_before_flight == 1:
 		logging.info('WRITING FILES')
-		logging.debug('Track number: ' + str(counter_z))
-		logging.debug('Track file: ' + file)
-		logging.debug('Copy from: ' + source + delimiter + file)
-		logging.debug('Destination dir: ' + destination)
-		print('Track number: ' + str(counter_z))
-		print('Track file: ' + file)
-		print('Copy from: ' + source + delimiter + file)
-		print('Destination dir: ' + destination)
-		if enable_track_counter == 1:
-			try:
-				final_source = source + delimiter + file
-				final_filename = destination + delimiter + str(counter_z) + "_" + file
-				shutil.copy(final_source, final_filename)
-				print('Copy to: ' + final_filename )
-				logging.debug('Copy to: %s', final_filename )
-			except IOError:
-				print('IO Error')
-				logging.error('IO error while writing %s', final_filename)
-			else:
-				logging.debug('Written OK - %s', final_filename)
+		try:		
+			shutil.move(final_source, final_filename)
+			logging.debug('Move to:   %s', final_filename )
+			print('Move to:   ' + final_filename)
+		except IOError:
+			print('IO Error')
+			logging.error('IO error while writing %s', final_filename)
 		else:
-			try:
-				final_source = source + delimiter + file
-				final_filename = destination + delimiter + file
-				shutil.copy(final_source, final_filename)
-				print('Copy to: ' + final_filename)
-				logging.debug('Copy to: %s', final_filename )
-			except IOError:
-				print('IO Error')
-				logging.error('IO error while writing %s', final_filename)
-			else:
-				logging.debug('Written OK - %s', final_filename)
+			logging.debug('Written OK - %s', final_filename)
 	else:
 		logging.error('WTF?')		
 	return
@@ -197,12 +189,12 @@ def get_track_from_collection(trackid):
 		track_filename = urllib.request.unquote(track_file[track_filename_mark+1:len(track_file)])
 		#print('Track Location: ' + track_filename)
 		#print('Track Path: ' + track_path)
-		print('Track Path raw: ' + track_file)
+		#print('Track Path raw: ' + track_file)
 		return (track_filename, track_path)
 
 def set_playlist_path(playlist_name, current_directory):
-	print('Playlist DIR: ' + export_dir + "/" +current_directory + "/" + playlist_name)
-	path = export_dir + "/" +current_directory + "/" + playlist_name
+	print('Playlist DIR: ' + export_dir + "/" + playlist_name)
+	path = export_dir + "/" + playlist_name
 	if not os.path.exists(path):
 		print('Creating directory ' + path)
 		os.makedirs(path)
