@@ -22,7 +22,7 @@ export_top_dir = "analyze"
 #Where is the Rekodbox XML?
 xml_file = "/Users/jaime/Local Documents/DJ COLLECTION/20240430-rekordbox-all.xml"
 #Dry run only - if set to 0, no files are written. If set to 1, files will be moved.
-removed_before_flight = 1
+enableFileRemoval = 1
 #Prefix track number for each playlist?
 #Each copied track filename will prepended with number (01_ , 02_, 03_) to maintain playlist position
 enable_track_counter = 0
@@ -33,6 +33,15 @@ export_dir = export_root_path+export_top_dir
 track_counter = 0
 
 def print_structure(xml_root):
+	"""
+	Prints the structure of the XML file.
+
+	Args:
+		xml_root (Element): The root element of the XML file.
+
+	Returns:
+		None
+	"""
 	playlist_arr = []
 	for elem in xml_root.iter('NODE'):
 		for playlist in elem.iterfind('NODE[@Type="1"]'):
@@ -42,13 +51,24 @@ def print_structure(xml_root):
 	counter = 0
 	for i in playlist_arr:
 		print(str(counter) + " - " + i)
-		counter = counter +1
+		counter = counter + 1
 	print("E - Return")
 	playlist_selector(playlist_arr)
 	return
 
 
 def playlist_selector(playlist_array):
+	"""
+	Prompts the user to select a playlist number to export.
+	If the user enters 'E' or 'e', it returns to the main menu.
+	Otherwise, it checks if the user's choice is a valid playlist number and exports the selected playlist.
+
+	Args:
+		playlist_array (list): The array of playlists.
+
+	Returns:
+		None
+	"""
 	user_choice = input("Select playlist number to export: ")
 	if user_choice =='E' or user_choice == 'e':
 		main_menu()
@@ -73,6 +93,7 @@ def list_single_playlist(xml_root,playlist_name):
 				for track in xml_file.iterfind('COLLECTION/TRACK[@TrackID="%s"]' % playlist_track.attrib['Key']):
 					track_rating = int(track.get('Rating'))
 
+				# Track rating = 51 equals one star
 				if track_rating >= 51:
 					print('---TRACK START---')
 					print('Track:', playlist_track.attrib['Key'], 'Rating:', track.get('Rating'))
@@ -82,10 +103,10 @@ def list_single_playlist(xml_root,playlist_name):
 					file_current_path = get_track_from_collection(playlist_track.attrib['Key'])[1]
 					
 					if track_rating > 51:
-						move_file(file_name,file_current_path,playlist_path,track_counter,0)
+						move_file(file_name,file_current_path,playlist_path,enableFileRemoval)
 					elif track_rating == 51:
 						print('REMOVING:', file_current_path + '/' + file_name )
-						if removed_before_flight == 1:
+						if enableFileRemoval == 1:
 							try:
 								os.remove(file_current_path + '/' + file_name)
 							except:
@@ -94,6 +115,8 @@ def list_single_playlist(xml_root,playlist_name):
 				#print('Track ID :' + get_tracks())
 				#get_track_from_collection(get_tracks(playlist_track))
 					print('---TRACK END---')
+
+				
 
 
 def add_zero(track_number):
@@ -131,48 +154,45 @@ def get_playlists(xml_root):
 					track_counter = track_counter + 1
 					file_name = get_track_from_collection(playlist_track.attrib['Key'])[0]
 					file_current_path = get_track_from_collection(playlist_track.attrib['Key'])[1]
-					move_file(file_name,file_current_path,playlist_path,track_counter,0)
+					move_file(file_name,file_current_path,playlist_path,enableFileRemoval)
 					#print('Track ID :' + get_tracks())
 					#get_track_from_collection(get_tracks(playlist_track))
 					print('---TRACK END---')
 			else:
 				print('Other: ' + node.attrib['Name'] + " " + node.attrib['Type'])
 
-def move_file(file,source,destination,counter,safe):
-	delimiter = "/"
-	counter_z = str(counter).zfill(2)
-	global enable_track_counter
 
-	logging.debug('Track number: ' + str(counter_z))
-	logging.debug('Track file: ' + file)
-	logging.debug('Move from: ' + source + delimiter + file)
-	logging.debug('Destination dir: ' + destination)
-	print('Track number: ' + str(counter_z))
-	print('Track file: ' + file)
-	
-	#print('Destination dir: ' + destination)
-	final_source = source + delimiter + file
-	final_filename = destination + delimiter
-	print('Move from: ' + final_source)
 
-	if removed_before_flight == 0:
-		logging.info('ONLY PRINTING')
-		print('Move to:   ' + final_filename)
+def move_file(file, source, destination, enable_file_removal):
+    delimiter = "/"
+    final_source = source + delimiter + file
+    final_destination_folder = destination + delimiter
 
-	elif removed_before_flight == 1:
-		logging.info('WRITING FILES')
-		try:		
-			shutil.move(final_source, final_filename)
-			logging.debug('Move to:   %s', final_filename )
-			print('Move to:   ' + final_filename)
-		except IOError:
-			print('IO Error')
-			logging.error('IO error while writing %s', final_filename)
-		else:
-			logging.debug('Written OK - %s', final_filename)
-	else:
-		logging.error('WTF?')		
-	return
+    logging.debug(f'Track file: {file}')
+    logging.debug(f'Move from: {final_source}')
+    logging.debug(f'Destination dir: {final_destination_folder}')
+
+    print(f'Track file: {file}')
+    print(f'Move from: {final_source}')
+
+    if enable_file_removal == 0:
+        logging.info('ONLY PRINTING')
+        print(f'Move to: {final_destination_folder}')
+
+    elif enable_file_removal == 1:
+        logging.info('WRITING FILES')
+        try:		
+            shutil.move(final_source, final_destination_folder)
+            logging.debug(f'Move to: {final_destination_folder}')
+            print(f'Move to: {final_destination_folder}')
+        except IOError:
+            print('IO Error')
+            logging.error(f'IO error while writing {final_destination_folder}')
+        else:
+            logging.debug(f'Written OK - {final_destination_folder}')
+    else:
+        logging.error('WTF?')		
+    return
 
 
 def get_tracks(playlist_name):
@@ -251,6 +271,5 @@ def main_menu():
 
 if __name__ == "__main__":
 	main()
-
 
 
